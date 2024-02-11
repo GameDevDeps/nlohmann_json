@@ -11,9 +11,9 @@ project(nlohmann_json VERSION 3.11.3 LANGUAGES CXX)
 ## determine if nlohmann_json is built as a subproject (using add_subdirectory) or if it is the main project
 ##
 set(MAIN_PROJECT OFF)
-if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-    set(MAIN_PROJECT ON)
-endif()
+#if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+#    set(MAIN_PROJECT ON)
+#endif()
 
 ##
 ## INCLUDE
@@ -44,7 +44,8 @@ option(JSON_GlobalUDLs                     "Place use-defined string literals in
 option(JSON_ImplicitConversions            "Enable implicit conversions." ON)
 option(JSON_DisableEnumSerialization       "Disable default integer enum serialization." OFF)
 option(JSON_LegacyDiscardedValueComparison "Enable legacy discarded value comparison." OFF)
-option(JSON_Install                        "Install CMake targets during install step." ${MAIN_PROJECT})
+#option(JSON_Install                        "Install CMake targets during install step." ${MAIN_PROJECT})
+option(JSON_Install                        "Install CMake targets during install step." ON)
 option(JSON_MultipleHeaders                "Use non-amalgamated version of the library." ON)
 option(JSON_SystemInclude                  "Include as system headers (skip for clang-tidy)." OFF)
 
@@ -100,16 +101,32 @@ endif()
 ## TARGET
 ## create target and add include path
 ##
-add_library(${NLOHMANN_JSON_TARGET_NAME} INTERFACE)
-add_library(${PROJECT_NAME}::${NLOHMANN_JSON_TARGET_NAME} ALIAS ${NLOHMANN_JSON_TARGET_NAME})
+#add_library(${NLOHMANN_JSON_TARGET_NAME} INTERFACE)
+#add_library(${PROJECT_NAME}::${NLOHMANN_JSON_TARGET_NAME} ALIAS ${NLOHMANN_JSON_TARGET_NAME})
+#if (${CMAKE_VERSION} VERSION_LESS "3.8.0")
+#    target_compile_features(${NLOHMANN_JSON_TARGET_NAME} INTERFACE cxx_range_for)
+#else()
+#    target_compile_features(${NLOHMANN_JSON_TARGET_NAME} INTERFACE cxx_std_11)
+#endif()
+add_library(${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME} INTERFACE)
+add_library(${PROJECT_NAME}::${NLOHMANN_JSON_TARGET_NAME} ALIAS ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME})
 if (${CMAKE_VERSION} VERSION_LESS "3.8.0")
-    target_compile_features(${NLOHMANN_JSON_TARGET_NAME} INTERFACE cxx_range_for)
+    target_compile_features(${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME} INTERFACE cxx_range_for)
 else()
-    target_compile_features(${NLOHMANN_JSON_TARGET_NAME} INTERFACE cxx_std_11)
+    target_compile_features(${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME} INTERFACE cxx_std_11)
 endif()
 
+#target_compile_definitions(
+#    ${NLOHMANN_JSON_TARGET_NAME}
+#    INTERFACE
+#    $<$<NOT:$<BOOL:${JSON_GlobalUDLs}>>:JSON_USE_GLOBAL_UDLS=0>
+#    $<$<NOT:$<BOOL:${JSON_ImplicitConversions}>>:JSON_USE_IMPLICIT_CONVERSIONS=0>
+#    $<$<BOOL:${JSON_DisableEnumSerialization}>:JSON_DISABLE_ENUM_SERIALIZATION=1>
+#    $<$<BOOL:${JSON_Diagnostics}>:JSON_DIAGNOSTICS=1>
+#    $<$<BOOL:${JSON_LegacyDiscardedValueComparison}>:JSON_USE_LEGACY_DISCARDED_VALUE_COMPARISON=1>
+#)
 target_compile_definitions(
-    ${NLOHMANN_JSON_TARGET_NAME}
+    ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME}
     INTERFACE
     $<$<NOT:$<BOOL:${JSON_GlobalUDLs}>>:JSON_USE_GLOBAL_UDLS=0>
     $<$<NOT:$<BOOL:${JSON_ImplicitConversions}>>:JSON_USE_IMPLICIT_CONVERSIONS=0>
@@ -118,22 +135,40 @@ target_compile_definitions(
     $<$<BOOL:${JSON_LegacyDiscardedValueComparison}>:JSON_USE_LEGACY_DISCARDED_VALUE_COMPARISON=1>
 )
 
+#target_include_directories(
+#    ${NLOHMANN_JSON_TARGET_NAME}
+#    ${NLOHMANN_JSON_SYSTEM_INCLUDE} INTERFACE
+#    $<BUILD_INTERFACE:${NLOHMANN_JSON_INCLUDE_BUILD_DIR}>
+#    $<INSTALL_INTERFACE:${NLOHMANN_JSON_INCLUDE_INSTALL_DIR}>
+#)
 target_include_directories(
-    ${NLOHMANN_JSON_TARGET_NAME}
+    ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME}
     ${NLOHMANN_JSON_SYSTEM_INCLUDE} INTERFACE
     $<BUILD_INTERFACE:${NLOHMANN_JSON_INCLUDE_BUILD_DIR}>
     $<INSTALL_INTERFACE:${NLOHMANN_JSON_INCLUDE_INSTALL_DIR}>
+)
+
+set_target_properties(
+    ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME}
+    PROPERTIES
+    EXPORT_NAME ${NLOHMANN_JSON_TARGET_NAME}
 )
 
 ## add debug view definition file for msvc (natvis)
 if (MSVC)
     set(NLOHMANN_ADD_NATVIS TRUE)
     set(NLOHMANN_NATVIS_FILE "nlohmann_json.natvis")
+#    target_sources(
+#        ${NLOHMANN_JSON_TARGET_NAME}
+#        INTERFACE
+#            $<INSTALL_INTERFACE:${NLOHMANN_NATVIS_FILE}>
+#            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${NLOHMANN_NATVIS_FILE}>
+#    )
     target_sources(
-        ${NLOHMANN_JSON_TARGET_NAME}
+        ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME}
         INTERFACE
-            $<INSTALL_INTERFACE:${NLOHMANN_NATVIS_FILE}>
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${NLOHMANN_NATVIS_FILE}>
+        $<INSTALL_INTERFACE:${NLOHMANN_NATVIS_FILE}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${NLOHMANN_NATVIS_FILE}>
     )
 endif()
 
@@ -187,13 +222,23 @@ if(JSON_Install)
             DESTINATION .
     )
     endif()
+#    export(
+#        TARGETS ${NLOHMANN_JSON_TARGET_NAME}
+#        NAMESPACE ${PROJECT_NAME}::
+#        FILE ${NLOHMANN_JSON_CMAKE_PROJECT_TARGETS_FILE}
+#    )
     export(
-        TARGETS ${NLOHMANN_JSON_TARGET_NAME}
+        TARGETS ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME}
         NAMESPACE ${PROJECT_NAME}::
         FILE ${NLOHMANN_JSON_CMAKE_PROJECT_TARGETS_FILE}
     )
+#    install(
+#        TARGETS ${NLOHMANN_JSON_TARGET_NAME}
+#        EXPORT ${NLOHMANN_JSON_TARGETS_EXPORT_NAME}
+#        INCLUDES DESTINATION ${NLOHMANN_JSON_INCLUDE_INSTALL_DIR}
+#    )
     install(
-        TARGETS ${NLOHMANN_JSON_TARGET_NAME}
+        TARGETS ${PROJECT_NAME}.${NLOHMANN_JSON_TARGET_NAME}
         EXPORT ${NLOHMANN_JSON_TARGETS_EXPORT_NAME}
         INCLUDES DESTINATION ${NLOHMANN_JSON_INCLUDE_INSTALL_DIR}
     )
